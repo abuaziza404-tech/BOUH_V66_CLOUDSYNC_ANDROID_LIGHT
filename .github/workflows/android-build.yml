@@ -1,4 +1,4 @@
-name: BOUH V66 Direct APK Build
+name: BOUH V66 Minimal APK Build
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build APK without Gradle
+    name: Build debug APK
     runs-on: ubuntu-latest
 
     steps:
@@ -23,59 +23,102 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android build tools
+      - name: Install SDK packages
         shell: bash
         run: |
+          set -eux
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Create direct Android source
+      - name: Create minimal Android project
         shell: bash
         run: |
-          set -e
+          set -eux
+          mkdir -p app/src/main/java/com/bouh/v66
+          mkdir -p app/src/main/res/values
 
-          mkdir -p src/com/bouh/v66
-          mkdir -p res/values
-          mkdir -p build/classes
-          mkdir -p build/dex
-          mkdir -p output
-
-          cat > AndroidManifest.xml <<'EOF'
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.bouh.v66">
-
-    <uses-sdk
-        android:minSdkVersion="23"
-        android:targetSdkVersion="35" />
-
-    <application
-        android:label="@string/app_name"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:allowBackup="true"
-        android:supportsRtl="true">
-
-        <activity
-            android:name=".MainActivity"
-            android:screenOrientation="portrait"
-            android:exported="true">
-
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-
-        </activity>
-    </application>
-</manifest>
+          cat > settings.gradle <<'EOF'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = 'BOUH_V66_CLOUDSYNC_ANDROID_LIGHT'
+include ':app'
 EOF
 
-          cat > res/values/strings.xml <<'EOF'
+          cat > build.gradle <<'EOF'
+plugins {
+    id 'com.android.application' version '8.6.1' apply false
+}
+EOF
+
+          cat > app/build.gradle <<'EOF'
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.bouh.v66'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.bouh.v66'
+        minSdk 23
+        targetSdk 35
+        versionCode 66
+        versionName '66.0'
+    }
+}
+EOF
+
+          cat > app/src/main/res/values/strings.xml <<'EOF'
 <resources>
     <string name="app_name">BOUH V66</string>
 </resources>
 EOF
 
-          cat > src/com/bouh/v66/MainActivity.java <<'EOF'
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme"
+        android:allowBackup="true"
+        android:supportsRtl="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#07110D</item>
+        <item name="android:navigationBarColor">#07110D</item>
+    </style>
+</resources>
+EOF
+
+          cat > app/src/main/java/com/bouh/v66/MainActivity.java <<'EOF'
 package com.bouh.v66;
 
 import android.app.Activity;
@@ -83,37 +126,32 @@ import android.os.Bundle;
 import android.graphics.Color;
 import android.view.Gravity;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.ScrollView;
+import android.widget.TextView;
 
 public class MainActivity extends Activity {
-
     private TextView label(String text, float size, int color) {
         TextView v = new TextView(this);
         v.setText(text);
         v.setTextSize(size);
         v.setTextColor(color);
         v.setGravity(Gravity.CENTER);
-        v.setPadding(8, 14, 8, 14);
+        v.setPadding(10, 14, 10, 14);
         return v;
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(28, 60, 28, 28);
+        root.setPadding(30, 60, 30, 30);
         root.setBackgroundColor(Color.rgb(7, 17, 13));
-
         root.addView(label("BOUH V66", 32, Color.rgb(215, 179, 90)));
         root.addView(label("CLOUDSYNC ANDROID LIGHT", 18, Color.WHITE));
-        root.addView(label("DIRECT APK BUILD", 18, Color.rgb(120, 255, 170)));
-        root.addView(label("NO GRADLE - NO KOTLIN", 16, Color.WHITE));
+        root.addView(label("MINIMAL APK BUILD", 18, Color.rgb(120, 255, 170)));
         root.addView(label("Ahmed Abu Aziza Al-Rashidi", 16, Color.rgb(215, 179, 90)));
-
         ScrollView scroll = new ScrollView(this);
         scroll.addView(root);
         setContentView(scroll);
@@ -121,72 +159,31 @@ public class MainActivity extends Activity {
 }
 EOF
 
-      - name: Build APK directly
+          echo '--- PROJECT TREE ---'
+          find . -maxdepth 5 -type f | sort
+          echo '--- ROOT BUILD ---'
+          cat build.gradle
+          echo '--- APP BUILD ---'
+          cat app/build.gradle
+
+      - name: Download Gradle 8.7
         shell: bash
         run: |
-          set -e
+          set -eux
+          curl -L --retry 3 -o gradle.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle.zip -d $HOME
+          $HOME/gradle-8.7/bin/gradle --version
 
-          export BT="$ANDROID_HOME/build-tools/35.0.0"
-          export ANDROID_JAR="$ANDROID_HOME/platforms/android-35/android.jar"
-
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "Build tools=$BT"
-          echo "Android jar=$ANDROID_JAR"
-
-          javac -source 8 -target 8 \
-            -classpath "$ANDROID_JAR" \
-            -d build/classes \
-            $(find src -name "*.java")
-
-          "$BT/d8" \
-            --lib "$ANDROID_JAR" \
-            --output build/dex \
-            $(find build/classes -name "*.class")
-
-          "$BT/aapt2" compile \
-            --dir res \
-            -o build/resources.zip
-
-          "$BT/aapt2" link \
-            -o build/unsigned.apk \
-            -I "$ANDROID_JAR" \
-            --manifest AndroidManifest.xml \
-            -R build/resources.zip \
-            --min-sdk-version 23 \
-            --target-sdk-version 35 \
-            --version-code 66 \
-            --version-name "66.0-direct" \
-            --auto-add-overlay
-
-          cd build/dex
-          zip -q -r ../unsigned.apk classes.dex
-          cd ../..
-
-          "$BT/zipalign" -f 4 build/unsigned.apk build/aligned.apk
-
-          keytool -genkeypair \
-            -v \
-            -keystore build/debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=BOUH,C=SD"
-
-          "$BT/apksigner" sign \
-            --ks build/debug.keystore \
-            --ks-pass pass:android \
-            --key-pass pass:android \
-            --out output/BOUH-V66-DIRECT-debug.apk \
-            build/aligned.apk
-
-          "$BT/apksigner" verify output/BOUH-V66-DIRECT-debug.apk
+      - name: Build debug APK
+        shell: bash
+        run: |
+          set -eux
+          $HOME/gradle-8.7/bin/gradle assembleDebug --no-daemon --stacktrace --info
+          find app/build/outputs/apk -type f -name '*.apk' -print -exec ls -lh {} \;
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BOUH-V66-DIRECT-debug-apk
-          path: output/BOUH-V66-DIRECT-debug.apk
+          name: BOUH-V66-MINIMAL-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
