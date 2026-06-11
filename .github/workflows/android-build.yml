@@ -1,0 +1,180 @@
+name: BOUH V66 Android Build Fixed
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Create Android project
+        shell: bash
+        run: |
+          set -e
+
+          mkdir -p app/src/main/java/com/bouh/v66
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = 'BOUH_V66_CLOUDSYNC_ANDROID_LIGHT'
+include ':app'
+EOF
+
+          cat > build.gradle <<'EOF'
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}
+EOF
+
+          cat > app/build.gradle <<'EOF'
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.bouh.v66'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.bouh.v66'
+        minSdk 23
+        targetSdk 35
+        versionCode 66
+        versionName '66.0-fixed'
+    }
+}
+EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:theme="@style/AppTheme"
+        android:label="BOUH V66"
+        android:allowBackup="true"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="portrait"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+    </application>
+</manifest>
+EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#07110D</item>
+        <item name="android:navigationBarColor">#07110D</item>
+    </style>
+</resources>
+EOF
+
+          cat > app/src/main/java/com/bouh/v66/MainActivity.java <<'EOF'
+package com.bouh.v66;
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.graphics.Color;
+import android.view.Gravity;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.ScrollView;
+
+public class MainActivity extends Activity {
+
+    private TextView label(String text, float size, int color) {
+        TextView v = new TextView(this);
+        v.setText(text);
+        v.setTextSize(size);
+        v.setTextColor(color);
+        v.setGravity(Gravity.CENTER);
+        v.setPadding(8, 12, 8, 12);
+        return v;
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER_HORIZONTAL);
+        root.setPadding(28, 48, 28, 28);
+        root.setBackgroundColor(Color.rgb(7, 17, 13));
+
+        root.addView(label("BOUH V66", 30, Color.rgb(215, 179, 90)));
+        root.addView(label("CLOUDSYNC ANDROID LIGHT", 18, Color.WHITE));
+        root.addView(label("APK BUILD FIXED", 18, Color.rgb(120, 255, 170)));
+        root.addView(label("Ahmed Abu Aziza Al-Rashidi", 16, Color.rgb(215, 179, 90)));
+        root.addView(label("GitHub Actions Ready", 16, Color.WHITE));
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(root);
+        setContentView(scroll);
+    }
+}
+EOF
+
+      - name: Download Gradle
+        shell: bash
+        run: |
+          curl -L -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          /tmp/gradle-8.9/bin/gradle assembleDebug --stacktrace --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOUH-V66-FIXED-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
